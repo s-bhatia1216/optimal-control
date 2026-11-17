@@ -1,0 +1,6 @@
+# S2 with apogee-weighted science value: the dropped hours should be the
+# lowest-w ROI edges, giving a unique centered science window.
+base: s2_uniform.yaml
+case_name: s2_apogee
+objective:
+  weight: apogee

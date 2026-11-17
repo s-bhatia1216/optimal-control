@@ -1,0 +1,7 @@
+# S2: downlink-limited. Contact window halved to 0.5 h (conservative pass;
+# the FDR's 1 h window is a scheduling choice, see docs/model.md Sec 5).
+# Uniform w leaves WHICH ROI hours to drop tied (singular in u_s).
+base: nominal.yaml
+case_name: s2_uniform
+windows:
+  contact_duration_h: 0.5

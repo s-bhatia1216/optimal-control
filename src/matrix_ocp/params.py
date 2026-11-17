@@ -20,6 +20,32 @@ from pathlib import Path
 
 import yaml
 
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge ``override`` into ``base`` (override wins)."""
+    out = dict(base)
+    for k, v in override.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def load_config_dict(path: str | Path) -> dict:
+    """Load a YAML config, resolving an optional ``base:`` key.
+
+    A case config may name a base config (path relative to its own directory);
+    the case values are deep-merged on top. This keeps stress-case files down
+    to the handful of lines that actually differ from nominal.
+    """
+    path = Path(path)
+    raw = yaml.safe_load(path.read_text())
+    if "base" in raw:
+        base = load_config_dict(path.parent / raw.pop("base"))
+        raw = _deep_merge(base, raw)
+    return raw
+
 # Conversion: bits/second -> Mbit/hour.  (x bps) * 3600 s/h / 1e6 bit/Mbit
 BPS_TO_MBIT_PER_H = 3600.0 / 1e6
 
@@ -69,6 +95,9 @@ class Params:
     dt_s: float
     n_orbits: int
 
+    # --- objective ---
+    w_mode: str = "uniform"   # "uniform" (ROI indicator) or "apogee" (r/r_a in ROI)
+
     # ------------------------------------------------------------------
     @property
     def E_max(self) -> float:
@@ -89,7 +118,7 @@ class Params:
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Params":
         """Load a config file and convert everything to working units."""
-        raw = yaml.safe_load(Path(path).read_text())
+        raw = load_config_dict(path)
 
         orbit = raw["orbit"]
         win = raw["windows"]
@@ -97,6 +126,7 @@ class Params:
         bat = raw["battery"]
         dat = raw["data"]
         sim = raw.get("simulation", {})
+        obj = raw.get("objective", {})
 
         capacity = (
             bat["capacity_eol_Wh"] if bat.get("use_eol_capacity", False)
@@ -131,6 +161,7 @@ class Params:
             D_max=dat["storage_GB"] * 8e9 / 1e6,
             dt_s=float(sim.get("dt_s", 10.0)),
             n_orbits=int(sim.get("n_orbits", 3)),
+            w_mode=str(obj.get("weight", "uniform")),
         )
 
     def replace(self, **changes) -> "Params":

@@ -1,8 +1,9 @@
 # Model definition and FDR parameter decisions
 
 This file records every modeling choice that required judgment, especially
-where the FDR is internally inconsistent. Nothing here is silently assumed:
-each choice names its FDR source, the alternative, and the reason.
+where the report lists more than one value for the same quantity. Nothing
+here is silently assumed: each choice names its FDR source, the alternative,
+and the reason.
 
 Working units everywhere: hours, watt-hours, megabits. Power in W times time
 in h gives Wh directly; rates in Mbit/h.
@@ -41,7 +42,7 @@ We include it as a constant inflow. ASSUMPTION: FGM stays in survey mode
 The FDR power budget (Tables 85/87) reports mode totals: Day 62.2 W, Eclipse
 60.8 W. Our model needs the controllable pieces split out. We rebuild P_0
 bottom-up from Table 85 components instead of subtracting from the totals,
-because the totals are internally inconsistent (see 3a).
+because the stated subtotals and their components differ slightly (see 3a).
 
 | term | value | composition (FDR Table 85 unless noted) |
 |---|---|---|
@@ -50,15 +51,16 @@ because the totals are internally inconsistent (see 3a).
 | P_s | 3.7 W | ESA 1.7 + EPD/EIS+ 2.0 (also Table 20) |
 | P_c | 68.3 W | power amplifier 53.2 + radio TX minus idle (17.0 - 1.9 = 15.1, Table 40) |
 
-Notes and FDR inconsistencies found while deriving this:
+Notes recorded while deriving this:
 
 - (3a) Table 85's Day OPL/CCD subtotal is 57.7 W, but its own components sum
-  to 64.7 W (53.2 + 2.0 + 1.7 + 0.8 + 7.0): the stated subtotal omits the
-  7.0 W flight computer, while the Eclipse subtotal (11.5 W) includes it. We
+  to 64.7 W (53.2 + 2.0 + 1.7 + 0.8 + 7.0): the stated subtotal appears
+  not to include the 7.0 W flight computer, while the Eclipse subtotal
+  (11.5 W) does include it. We
   include the flight computer in P_0 at all times (it must run).
 - (3b) Table 85's Eclipse column lists ESA (1.7 W) and EPD (2.0 W) ON, while
-  Tables 13/14 say Eclipse mode powers them OFF. So the FDR power budget
-  already carries the power for eclipse science that its own ops rules forbid.
+  Tables 13/14 say Eclipse mode powers them OFF. So the power budget already
+  carries the power for eclipse science that the mode tables turn off.
   We treat science in eclipse as a control decision, which is the point of the
   project. The baseline policy follows Tables 13/14 (off).
 - (3c) The 1.9 W radio idle draw (Table 40) appears nowhere in the Table 85
@@ -73,25 +75,26 @@ Notes and FDR inconsistencies found while deriving this:
 
 ## 4. Battery capacity and bounds
 
-FDR quotes three mutually inconsistent sets of numbers:
+The report gives three different sets of numbers for the battery:
 
 - Section 10.7.4 and Table 90: 8s6p Molicel INR-21700-M50A, 28.8 V bus,
   4.8 Ah cells -> 48 x 3.6 V x 4.8 Ah = 829.44 Wh nominal. Table 90 also
   gives BOL required capacity 28.1 Ah (809 Wh) and EOL 25.5 Ah (734.4 Wh).
 - Section 10.7.4.1 text: "72.75 Ah BOL" with a "35% degradation" argument.
-  At 28.8 V that is 2095 Wh, inconsistent with the actual 6-parallel cell
-  configuration (28.8 Ah). Rejected: the hardware configuration wins.
+  At 28.8 V that is 2095 Wh, which does not follow from the 6-parallel cell
+  configuration (28.8 Ah). We use the hardware configuration.
 
 DECISION: capacity = 829.44 Wh (nameplate of the flown configuration),
 EOL variant = 734.4 Wh (Table 90 EOL, about 11.5% fade). Both appear in
 configs; the audit sweeps them.
 
-DoD floor: Table 14 and Section 10.7.4.2 say 60% DoD (E_min = 0.4 cap);
-Table 13 says 30% (E_min = 0.7 cap). DECISION: 60% nominal (it is the design
-basis used to size the battery), 30% kept as a stress variant. Audit finding:
-with the worst-case 4.356 h eclipse, the 30% floor is infeasible at BOL and
-EOL even with the payload off (needs 257 Wh > 248.8 / 220.3 Wh usable), i.e.
-FDR Table 13's own rule cannot survive the FDR's own worst eclipse.
+DoD floor: the report lists two values: 60% DoD in Table 14 and Section
+10.7.4.2 (E_min = 0.4 cap) and 30% in Table 13 (E_min = 0.7 cap).
+DECISION: 60% nominal (it is the design basis used to size the battery),
+30% kept as a stress variant. Audit observation: with the worst-case
+4.356 h eclipse, the 30% floor and the eclipse load cannot both be
+satisfied, even with the payload off (257 Wh needed vs 248.8 / 220.3 Wh
+usable at BOL / EOL).
 
 E_max = capacity (full charge). ASSUMPTION: charge/discharge efficiency = 1
 and no taper near full charge; losses are second order for this study and
@@ -110,10 +113,10 @@ identical across policies being compared.
   apogee (Table 47 worst case, tail season). P_in = 143.6 W sunlit, 0 in
   eclipse (no penumbra ramp: ASSUMPTION, penumbra is ~15 min total per
   Table 47 and affects both policies equally).
-- Contact: 1 h centered on perigee (Sec 5.7.10, Table 13). FDR inconsistency:
-  Table 46 lists "time below 1.08 R_E" (about 1 h) as the comm window even
-  though r_p = 1.1588 R_E > 1.08 R_E, so taken literally the spacecraft never
-  goes below 1.08 R_E. We treat contact as exactly 1 h centered on perigee
+- Contact: 1 h centered on perigee (Sec 5.7.10, Table 13). Note: Table 46
+  lists "time below 1.08 R_E" (about 1 h) as the comm window even
+  though r_p = 1.1588 R_E > 1.08 R_E, so that criterion is not met anywhere
+  on the orbit. We treat contact as exactly 1 h centered on perigee
   and note that Table 42's link budget closes at the 12 R_E slant range, so
   the 1 h window is a scheduling choice, not a geometry limit.
 

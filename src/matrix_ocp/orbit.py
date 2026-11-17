@@ -124,12 +124,95 @@ class OrbitTimeline:
         return self.p.P0_day * (1.0 - ecl) + self.p.P0_eclipse * ecl
 
     def w(self, t_h) -> np.ndarray:
-        """Science value weight. Pluggable; for now the ROI indicator.
+        """Science value weight (pluggable; selected by ``Params.w_mode``).
 
-        Later experiments may up-weight apogee science; keep all uses going
-        through this method so that swap is one edit.
+        "uniform": the ROI indicator (all ROI science equally valuable).
+        "apogee":  indicator * r(t)/r_a, so deep-tail science is worth more.
+                   Used to break the tie on singular arcs, where uniform w
+                   makes the placement of rationed science non-unique.
         """
-        return self.in_roi(t_h)
+        roi = self.in_roi(t_h)
+        if self.p.w_mode == "apogee":
+            return roi * self.radius_RE(t_h) / self.p.r_a_RE
+        return roi
+
+    # --- interval-averaged inputs for the direct method --------------------
+    # The dynamics are control-affine and state-independent, so propagating
+    # states with per-interval AVERAGES of the exogenous inputs is exact for
+    # piecewise-constant controls. Averaging (instead of midpoint sampling)
+    # removes the O(h) window-quantization error: e.g. the grid's downlink
+    # capacity sum(c_k h) r_c equals the true r_c * contact_duration exactly.
+
+    def _window_segments(self, center_h: float, halfwidth_h: float):
+        """A periodic window as 1-2 plain [lo, hi] segments inside [0, T]."""
+        T = self.T_h
+        lo, hi = center_h - halfwidth_h, center_h + halfwidth_h
+        if lo < 0.0:
+            return [(0.0, hi), (T + lo, T)]
+        if hi > T:
+            return [(lo, T), (0.0, hi - T)]
+        return [(lo, hi)]
+
+    def _avg_over_intervals(self, t_edges: np.ndarray, segments) -> np.ndarray:
+        """Exact per-interval overlap fraction with a union of segments."""
+        a, b = t_edges[:-1], t_edges[1:]
+        out = np.zeros(len(a))
+        for (lo, hi) in segments:
+            out += np.clip(np.minimum(b, hi) - np.maximum(a, lo), 0.0, None)
+        return out / (b - a)
+
+    def window_edge_times(self) -> np.ndarray:
+        """All window boundary times in (0, T): ROI, eclipse, contact edges.
+
+        The direct method inserts these into its mesh so that every interval
+        lies purely inside or outside each window; with state-independent
+        affine dynamics the transcription is then exact for piecewise-constant
+        controls (no O(h) window quantization, no intra-interval sun/eclipse
+        mixing).
+        """
+        times = [self.t_roi_entry_h, self.t_roi_exit_h]
+        for center, half in [
+            (self.t_eclipse_center_h, 0.5 * self.p.eclipse_duration_h),
+            (self.t_contact_center_h, 0.5 * self.p.contact_duration_h),
+        ]:
+            for lo, hi in self._window_segments(center, half):
+                times += [lo, hi]
+        t = np.array(times)
+        return np.unique(t[(t > 1e-9) & (t < self.T_h - 1e-9)])
+
+    def interval_inputs(self, t_edges: np.ndarray, w_subsamples: int = 64) -> dict:
+        """Exogenous inputs averaged over each interval of a mesh.
+
+        Indicators (ROI, eclipse, contact) use exact segment overlap; the
+        science weight w (smooth inside the ROI for the apogee mode) uses
+        midpoint-rule subsampling with ``w_subsamples`` points per interval.
+        """
+        p = self.p
+        roi_f = self._avg_over_intervals(
+            t_edges, self._window_segments(0.5 * self.T_h,
+                                           0.5 * self.T_h - self.t_roi_entry_h))
+        ecl_f = self._avg_over_intervals(
+            t_edges, self._window_segments(self.t_eclipse_center_h,
+                                           0.5 * p.eclipse_duration_h))
+        con_f = self._avg_over_intervals(
+            t_edges, self._window_segments(self.t_contact_center_h,
+                                           0.5 * p.contact_duration_h))
+        # Subsampled average of w(t); supports non-uniform meshes. On a mesh
+        # snapped to the window edges this is exact up to quadrature error of
+        # the smooth r(t)/r_a factor (midpoint rule, 64 points per interval).
+        a = t_edges[:-1]
+        widths = np.diff(t_edges)
+        offs = (np.arange(w_subsamples) + 0.5) / w_subsamples
+        t_sub = a[:, None] + offs[None, :] * widths[:, None]
+        w_f = self.w(t_sub.ravel()).reshape(len(a), -1).mean(axis=1)
+        return {
+            "roi_f": roi_f,
+            "eclipse_f": ecl_f,
+            "contact_f": con_f,
+            "w_f": w_f,
+            "P_in_W": p.P_in * (1.0 - ecl_f),
+            "P_0_W": p.P0_day * (1.0 - ecl_f) + p.P0_eclipse * ecl_f,
+        }
 
     # ------------------------------------------------------------------
     def summary(self) -> dict:

@@ -26,10 +26,13 @@ Every experiment reads a YAML config and writes figures + numbers to
 
 ```bash
 .venv/bin/python scripts/run_phase1.py --config configs/nominal.yaml
+.venv/bin/python scripts/run_phase2.py     # all cases; --cases to subset
 ```
 
-Outputs: `fig1_orbit_timeline`, `fig2_baseline_policy` (PDF + PNG),
-`audit.json`, `audit.md`.
+Phase 1 outputs: `fig1_orbit_timeline`, `fig2_baseline_policy` (PDF + PNG),
+`audit.json`, `audit.md`. Phase 2 outputs per case: `fig3_optimal_solution`,
+`refinement.{json,md}`, `comparison.json`, `solution_N2880.npz`, plus
+`results/sweeps/` (DoD-floor sweep) and `results/checkpoint2.md`.
 
 ## Layout
 

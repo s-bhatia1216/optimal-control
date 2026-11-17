@@ -1,0 +1,6 @@
+# S1 with apogee-weighted science value (w = r/r_a inside ROI) to break the
+# singular-arc tie: rationed eclipse science should concentrate at apogee.
+base: s1_uniform.yaml
+case_name: s1_apogee
+objective:
+  weight: apogee

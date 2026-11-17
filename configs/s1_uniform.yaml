@@ -1,0 +1,10 @@
+# S1: battery-rationed eclipse science. EOL capacity (FDR Table 90) with a
+# 0.36 DoD floor: the representative point inside the EOL binding band
+# [0.350, 0.372] found in the Phase-1 audit (see results/sweeps for the full
+# DoD-floor sweep showing infeasible / binding / slack regimes).
+# Uniform w exhibits the singular arc: eclipse science placement is tied.
+base: nominal.yaml
+case_name: s1_uniform
+battery:
+  use_eol_capacity: true
+  dod_floor: 0.36

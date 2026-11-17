@@ -158,3 +158,92 @@ def plot_baseline(p: Params, tl: OrbitTimeline, traj: dict, outdir: Path):
     ax_P.set_xlim(0, tl.T_h)
 
     _save(fig, outdir, "fig2_baseline_policy")
+
+
+def plot_solution(p, tl, sol: dict, baseline: dict, outdir: Path,
+                  name: str = "fig3_optimal_solution"):
+    """Optimal trajectories, controls, and multiplier-based costates.
+
+    Baseline E and D are overlaid in gray for comparison. Costates are the
+    IPOPT defect duals mapped to the Liberzon convention (direct.py); they are
+    plotted as steps at interval midpoints.
+    """
+    te, tm = sol["t_edges_h"], sol["t_mid_h"]
+    fig, axes = plt.subplots(5, 1, figsize=(7.0, 9.2), sharex=True,
+                             gridspec_kw={"height_ratios": [1.25, 1.0, 1.0, 0.85, 0.85]})
+    ax_E, ax_D, ax_u, ax_pE, ax_pD = axes
+    for ax in axes:
+        _shade_windows(ax, tl, roi=False)
+
+    ax_E.plot(baseline["t_edges_h"], baseline["E_Wh"], color="#52514e", lw=1.2,
+              ls="--", label="FDR baseline")
+    ax_E.plot(te, sol["E_Wh"], color=C_BLUE, lw=2, label="optimal")
+    ax_E.axhline(p.E_max, color="#52514e", lw=0.8, ls=":")
+    ax_E.axhline(p.E_min, color=C_RED, lw=0.8, ls=":")
+    ax_E.text(0.3, p.E_min + 0.012 * (p.E_max - p.E_min), "$E_{min}$",
+              fontsize=8.5, color=C_RED)
+    ax_E.set_ylabel("battery $E$ [Wh]")
+    ax_E.legend(loc="lower right", fontsize=8.5, ncol=2)
+    ax_E.set_title(
+        f"Optimal vs baseline, case '{p.case_name}' (w: {p.w_mode}; "
+        f"N = {sol['N']}; gray: eclipse, green: contact)")
+
+    ax_D.plot(baseline["t_edges_h"], baseline["D_Mbit"], color="#52514e",
+              lw=1.2, ls="--")
+    ax_D.plot(te, sol["D_Mbit"], color=C_VIOLET, lw=2)
+    ax_D.set_ylabel("stored data $D$ [Mbit]")
+
+    ax_u.step(tm, sol["u_s"], where="mid", color=C_ORANGE, lw=1.6, label="$u_s$ science")
+    ax_u.step(tm, sol["u_c"], where="mid", color=C_AQUA, lw=1.6, label="$u_c$ transmit")
+    ax_u.step(tm, sol["u_h"], where="mid", color=C_YELLOW, lw=1.6, label="$u_h$ harvest")
+    ax_u.set_ylabel("controls [-]")
+    ax_u.set_ylim(-0.05, 1.12)
+    ax_u.legend(loc="center right", fontsize=8.5)
+
+    ax_pE.step(tm, sol["p_E"], where="mid", color=C_BLUE, lw=1.6)
+    ax_pE.axhline(0.0, color="#52514e", lw=0.8)
+    ax_pE.set_ylabel("$p_E$ [Mbit/Wh]")
+
+    ax_pD.step(tm, sol["p_D"], where="mid", color=C_VIOLET, lw=1.6)
+    ax_pD.axhline(0.0, color="#52514e", lw=0.8)
+    ax_pD.set_ylabel("$p_D$ [-]")
+    ax_pD.set_xlabel("time since perigee [h]")
+    ax_pD.set_xlim(0, tl.T_h)
+
+    _save(fig, outdir, name)
+
+
+def plot_dod_sweep(sweep: dict, outdir: Path, name: str = "fig5_dod_sweep"):
+    """Optimal eclipse-science hours vs DoD floor at BOL and EOL capacity.
+
+    Shows the three regimes (infeasible / E_min binds / slack) and overlays
+    the analytic prediction clip((floor*cap - need0)/P_s, 0, T_ecl).
+    """
+    fig, ax = plt.subplots(figsize=(6.4, 3.9))
+    colors = {"BOL": C_BLUE, "EOL": C_ORANGE}
+    for cap_name, rows in sweep["results"].items():
+        f = np.array([r["dod_floor"] for r in rows])
+        ok = np.array([r["status"] == "ok" for r in rows])
+        y = np.array([r.get("science_eclipse_h", np.nan) for r in rows])
+        c = colors[cap_name]
+        ax.plot(f[ok], y[ok], "o-", ms=4.5, lw=1.6, color=c,
+                label=f"{cap_name} ({sweep['capacities_Wh'][cap_name]:.0f} Wh)")
+        ax.plot(f[~ok], np.zeros(np.sum(~ok)), "x", ms=6, color=c, alpha=0.6)
+        # Analytic prediction: feasible science time grows linearly with floor.
+        fa = np.linspace(f.min(), f.max(), 200)
+        pred = np.clip((fa * sweep["capacities_Wh"][cap_name]
+                        - sweep["need0_Wh"]) / sweep["P_s_W"],
+                       0.0, sweep["eclipse_h"])
+        pred[fa * sweep["capacities_Wh"][cap_name] < sweep["need0_Wh"]] = np.nan
+        ax.plot(fa, pred, lw=0.9, ls="--", color=c, alpha=0.6)
+    ax.axhline(sweep["eclipse_h"], color="#52514e", lw=0.8, ls=":")
+    ax.text(0.405, sweep["eclipse_h"] + 0.07, "full eclipse", fontsize=8)
+    ax.annotate("S1 representative point", xy=(0.36, 1.995), xytext=(0.37, 0.9),
+                fontsize=8.5, arrowprops=dict(arrowstyle="->", lw=0.9))
+    ax.set_xlabel("DoD floor (fraction of capacity allowed to discharge)")
+    ax.set_ylabel("optimal eclipse science [h]")
+    ax.set_title("Three regimes of the battery constraint\n"
+                 "(x: infeasible, rising arc: $E_{min}$ binds, plateau: slack; "
+                 "dashed: analytic)")
+    ax.legend(loc="center right", fontsize=8.5)
+    _save(fig, outdir, name)

@@ -48,3 +48,6 @@ data:
 simulation:
   dt_s: 10.0               # baseline-policy integration step
   n_orbits: 3              # orbits to converge the periodic cycle (keep last)
+
+objective:
+  weight: uniform          # "uniform" (ROI indicator) or "apogee" (w = r/r_a in ROI)

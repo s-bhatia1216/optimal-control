@@ -1,0 +1,50 @@
+# Nominal case: FDR parameters for a MATRIX Group-1 spacecraft (worst-case orbit).
+# Every value cites its FDR source; derivations and inconsistency resolutions are
+# in docs/model.md. Units are encoded in key names; params.py converts everything
+# to the working units (hours, Wh, Mbit).
+
+case_name: nominal
+
+orbit:
+  r_p_RE: 1.1588          # perigee radius [R_E], FDR Table 46 (Group 1)
+  r_a_RE: 12.09           # apogee radius  [R_E], FDR Table 46 (Group 1)
+  roi_radius_RE: 6.0      # ROI is r > 6 R_E, FDR Sec 1.1 / Table 46
+  R_E_km: 6378.137
+  mu_km3_s2: 398600.4418
+
+windows:
+  eclipse_duration_h: 4.356   # max eclipse, FDR Table 47 (Group 1, tail season)
+  eclipse_center_frac: 0.5    # orbit fraction past perigee; 0.5 = apogee (worst case)
+  contact_duration_h: 1.0     # ~1 h ground contact, FDR Sec 5.7.10 / Table 13
+  contact_center_frac: 0.0    # centered on perigee (t = 0)
+
+power_W:
+  P_in: 143.6      # solar array output in sunlight, FDR Sec 10.7.5.2 / Table 90
+  P0_day: 14.2     # DERIVED uncontrollable day load: ADCS 3.5 + flight computer 7.0
+                   #   + FGM 0.8 + thermal sensors 1.0 + radio idle 1.9
+                   #   (FDR Tables 85, 40; see docs/model.md "Load decomposition")
+  P0_eclipse: 59.0 # DERIVED uncontrollable eclipse load: ADCS 3.0 + FC 7.0 + FGM 0.8
+                   #   + heaters & sensors 46.3 + radio idle 1.9
+  P_s: 3.7         # controllable science power: ESA 1.7 + EPD/EIS+ 2.0 (Tables 85, 20)
+  P_c: 68.3        # controllable transmit power: power amplifier 53.2 (Table 85)
+                   #   + radio TX-minus-idle 15.1 (Table 40: 17.0 TX, 1.9 idle)
+
+battery:
+  capacity_Wh: 829.44      # 8s6p Molicel M50A: 48 cells x 3.6 V x 4.8 Ah
+                           #   (FDR Sec 10.7.4, Table 90); see docs/model.md
+  capacity_eol_Wh: 734.4   # EOL: 25.5 Ah x 28.8 V (FDR Table 90)
+  use_eol_capacity: false
+  dod_floor: 0.60          # max allowed depth of discharge, FDR Table 14 / Sec 10.7.4
+                           #   (Table 13 says 0.30 instead; see docs/model.md)
+
+data:
+  r_s_bps: 6302.0          # controllable science rate: ESA 5632 + EPD 670 (Table 27)
+  r_hk_bps: 1156.0         # always-on background: FGM survey 6 + IMU 812 + RTD 88
+                           #   + other housekeeping 250 (FDR Table 27)
+  include_housekeeping: true
+  r_c_bps: 253394.4928     # downlink rate, FDR Table 42 (includes 1.5x data margin)
+  storage_GB: 4.0          # solid-state recorder, FDR Sec 5.7.10 (decimal GB -> bits)
+
+simulation:
+  dt_s: 10.0               # baseline-policy integration step
+  n_orbits: 3              # orbits to converge the periodic cycle (keep last)

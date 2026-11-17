@@ -214,6 +214,24 @@ class OrbitTimeline:
             "P_0_W": p.P0_day * (1.0 - ecl_f) + p.P0_eclipse * ecl_f,
         }
 
+    def midpoint_inputs(self, t_edges: np.ndarray) -> dict:
+        """Exogenous inputs SAMPLED at interval midpoints (the naive scheme).
+
+        Kept only for the mesh-refinement comparison figure: sampling
+        quantizes every window boundary to the mesh, an O(h) error that
+        interval averaging on the edge-snapped mesh removes entirely
+        (docs/direct_method.md Section 1).
+        """
+        tm = t_edges[:-1] + 0.5 * np.diff(t_edges)
+        return {
+            "roi_f": self.in_roi(tm),
+            "eclipse_f": self.in_eclipse(tm),
+            "contact_f": self.in_contact(tm),
+            "w_f": self.w(tm),
+            "P_in_W": self.P_in(tm),
+            "P_0_W": self.P_0(tm),
+        }
+
     # ------------------------------------------------------------------
     def summary(self) -> dict:
         """Key timeline numbers for the audit report."""

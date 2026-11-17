@@ -22,10 +22,10 @@ from pathlib import Path
 import numpy as np
 
 from matrix_ocp.baseline import simulate_baseline
-from matrix_ocp.direct import solve_ocp
+from matrix_ocp.direct import polish_solution, solve_ocp
 from matrix_ocp.orbit import OrbitTimeline
 from matrix_ocp.params import Params
-from matrix_ocp.plotting import plot_dod_sweep, plot_solution
+from matrix_ocp.plotting import plot_dod_sweep, plot_mesh_error, plot_solution
 
 REPO = Path(__file__).resolve().parents[1]
 CASES = ["nominal", "s1_uniform", "s1_apogee", "s2_uniform", "s2_apogee"]
@@ -67,7 +67,16 @@ def run_case(case: str) -> dict:
         {k: v for k, v in finest.items()
          if isinstance(v, (int, float, str, list, bool))}, indent=2))
 
-    plot_solution(p, tl, finest, baseline, outdir)
+    # Second-stage lexicographic polish: same optimal value, flight-like
+    # trajectory (E rides E_max, buffer empties). Used for plots only; the
+    # stage-1 duals it carries remain the ones used in all PMP checks.
+    polished = polish_solution(p, tl, finest)
+    np.savez(outdir / f"solution_N{MESHES[-1]}_polished.npz",
+             **{k: v for k, v in polished.items() if isinstance(v, np.ndarray)})
+    plot_solution(p, tl, polished, baseline, outdir)
+    # Stage-1 figure kept alongside: it shows the analytic-center smear on
+    # singular/degenerate arcs (the honest LP picture the text discusses).
+    plot_solution(p, tl, finest, baseline, outdir, name="fig3_stage1_solution")
 
     comparison = {
         "baseline_science_Mbit": baseline["science_Mbit"],
@@ -89,6 +98,12 @@ def run_case(case: str) -> dict:
         "p_E_eclipse_mean": float(np.mean(finest["p_E"][finest["eclipse"] > 0.5])),
         "p_D_mean": float(np.mean(finest["p_D"])),
         "r_s_over_P_s": p.r_s / p.P_s,
+        # Polish diagnostics: same science value, complementary slackness of
+        # (stage-1 duals, polished primal) should hold to solver tolerance.
+        "polished_J_gap_Mbit": polished["J_gap_vs_stage1_Mbit"],
+        "polished_cs_violation": polished["cs_violation"],
+        "polished_min_E_Wh": polished["min_E_Wh"],
+        "polished_dumped_Wh": polished["dumped_Wh"],
     }
     (outdir / "comparison.json").write_text(json.dumps(comparison, indent=2))
     (outdir / "refinement.json").write_text(json.dumps(rows, indent=2))
@@ -117,6 +132,40 @@ def _write_refinement_md(case: str, rows: list[dict], path: Path):
             f" {r['science_eclipse_h']:.4f} | {r['science_offroi_h']:.3f} |"
             f" {r['min_E_Wh']:.3f} | {sw} |")
     path.write_text("\n".join(lines) + "\n")
+
+
+def run_mesh_comparison() -> dict:
+    """Snapped vs midpoint-sampled transcription error vs mesh size.
+
+    Error metric per case is the distance of a hand-derivable quantity from
+    its analytic value: the S1 eclipse ration (energy budget) and the S2
+    total science time (downlink capacity). Snapped meshes hit these exactly
+    at every N; midpoint sampling converges at O(h)."""
+    specs = {}
+    for case in ["s1_uniform", "s2_uniform"]:
+        p = Params.from_yaml(REPO / "configs" / f"{case}.yaml")
+        tl = OrbitTimeline(p)
+        if case == "s1_uniform":
+            exact = (p.dod_floor * p.capacity_Wh
+                     - p.P0_eclipse * p.eclipse_duration_h) / p.P_s
+            key, label = "science_eclipse_h", "S1 eclipse science ration"
+        else:
+            exact = (p.r_c * p.contact_duration_h - p.r_hk * tl.T_h) / p.r_s
+            key, label = "science_roi_h", "S2 total science time"
+        rows = []
+        for N in [90, 180, 360, 720, 1440, 2880]:
+            row = {"N": N}
+            for mesh in ("snapped", "midpoint"):
+                sol = solve_ocp(p, tl, N, max_iter=600, mesh=mesh)
+                row[mesh] = sol[key] if sol["status"] == "ok" else None
+            rows.append(row)
+        specs[case] = {"exact_h": exact, "label": label, "rows": rows}
+    out = {"cases": specs}
+    outdir = REPO / "results" / "sweeps"
+    outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / "mesh_error.json").write_text(json.dumps(out, indent=2))
+    plot_mesh_error(out, outdir)
+    return out
 
 
 def run_dod_sweep(N: int = 720) -> dict:
@@ -194,6 +243,8 @@ def main():
     if not args.skip_sweep:
         print("[sweep] DoD floor sweep ...")
         sweep = run_dod_sweep()
+        print("[sweep] snapped vs midpoint mesh comparison ...")
+        run_mesh_comparison()
     write_checkpoint2(case_results, sweep)
     print(f"[ok] wrote results/checkpoint2.md")
 

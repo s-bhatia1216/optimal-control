@@ -213,6 +213,41 @@ def plot_solution(p, tl, sol: dict, baseline: dict, outdir: Path,
     _save(fig, outdir, name)
 
 
+def plot_mesh_error(data: dict, outdir: Path, name: str = "fig6_mesh_error"):
+    """Transcription error vs mesh size, snapped vs midpoint-sampled inputs.
+
+    Log-log |error| of a hand-derivable quantity (S1 eclipse ration, S2 total
+    science time) against its analytic value. Midpoint sampling shows the
+    O(h) window-quantization error; the snapped mesh sits at solver tolerance
+    for every N (plotted on the floor of the axis).
+    """
+    FLOOR = 1e-10   # display floor so exact (0-error) points stay on the axes
+    fig, ax = plt.subplots(figsize=(6.4, 3.9))
+    colors = {"s1_uniform": C_BLUE, "s2_uniform": C_ORANGE}
+    Ns = None
+    for case, spec in data["cases"].items():
+        N = np.array([r["N"] for r in spec["rows"]], dtype=float)
+        Ns = N
+        c = colors.get(case, C_MAGENTA)
+        for mesh, style in [("midpoint", "o-"), ("snapped", "s--")]:
+            err = np.array([abs(r[mesh] - spec["exact_h"])
+                            if r[mesh] is not None else np.nan
+                            for r in spec["rows"]])
+            ax.loglog(N, np.maximum(err, FLOOR), style, ms=5, lw=1.6, color=c,
+                      alpha=1.0 if mesh == "midpoint" else 0.55,
+                      label=f"{spec['label']}, {mesh}")
+    # O(1/N) reference slope through the first midpoint error decade.
+    ref = 10.0 / Ns
+    ax.loglog(Ns, ref, lw=0.9, ls=":", color="#52514e")
+    ax.text(Ns[-2], ref[-2] * 1.5, "$O(1/N)$", fontsize=8.5, color="#52514e")
+    ax.set_xlabel("base mesh intervals $N$")
+    ax.set_ylabel("|error| vs analytic value [h]")
+    ax.set_title("Window-edge snapping removes the O(h) transcription error\n"
+                 "(snapped error is mesh-independent, at IPOPT tolerance level)")
+    ax.legend(loc="center left", fontsize=8)
+    _save(fig, outdir, name)
+
+
 def plot_dod_sweep(sweep: dict, outdir: Path, name: str = "fig5_dod_sweep"):
     """Optimal eclipse-science hours vs DoD floor at BOL and EOL capacity.
 

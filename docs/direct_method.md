@@ -27,6 +27,18 @@ solver selection on degenerate directions.
   science window in S1, the ROI-edge drop in S2) that move by O(h) across
   meshes while the objective moves only in its fifth significant digit,
   consistent with an O(h^2) value penalty for an O(h) switch-time error.
+- Controls: u_c is capped by the contact indicator and u_s by the ROI
+  indicator (ESA/EPD run only in the magnetotail, FDR Tables 13/14). The
+  u_s cap does not change the optimal value in any case (off-ROI science
+  carries zero weight, and in the cases where it was energetically free it
+  only removed a degenerate direction, see Section 3); the objective matched
+  the unbounded runs to all reported digits.
+- The naive alternative (uniform mesh, inputs sampled at interval midpoints)
+  is kept as mesh="midpoint" for comparison. Its window quantization is an
+  O(h) error; results/sweeps/fig6_mesh_error shows the S1 eclipse ration and
+  the S2 total science time converging at O(1/N) under midpoint sampling
+  while the snapped mesh is flat at IPOPT tolerance (about 1e-5 h) for
+  every N.
 - Scaling: hours / Wh / Mbit keep all quantities within about three orders
   of magnitude of one; IPOPT converges in 20-60 iterations on every case.
 
@@ -90,18 +102,39 @@ regularize them away:
   the ration). The switching function is identically zero there (Phase 3).
   The apogee weight breaks the tie: a clean ON block centered on apogee.
 - Worthless off-ROI science (nominal, S1): w = 0 and no binding power or
-  data cost makes u_s outside the ROI completely free; IPOPT parks it near
-  0.5. In S2 the data cost makes it strictly suboptimal and it vanishes.
-  Metrics therefore always report ROI science, and switch-time extraction
-  masks u_s by the ROI indicator.
+  data cost makes u_s outside the ROI completely free; early runs (no ROI
+  cap on u_s) showed IPOPT parking it near 0.5. The transcription now caps
+  u_s by the ROI indicator (Section 1), which removes this direction without
+  changing the optimal value; metrics still report ROI science explicitly.
 - Harvest timing (u_h) and the D offset. Only u_h's integral between
   E-constraint activations matters, and D is defined up to an additive
   constant when neither data bound binds; IPOPT centers both (E drifts
-  between bounds instead of riding E_max; D sits near D_max/2). The baseline
-  overlay in the figures shows a representative member of the same optimal
-  family that the flight rule would pick.
+  between bounds instead of riding E_max; D sits near D_max/2). The
+  two-stage polish below picks the flight-like member for figures.
 
-## 4. Known limitations
+## 4. Two-stage polish for figures (and why the stage-1 duals stay valid)
+
+Published figures use a lexicographic second solve (direct.polish_solution): hold
+the weighted science value at its stage-1 optimum, maximize the integral of
+E (E then rides E_max and discharges as late as possible, resolving the
+harvest-timing degeneracy and placing the S1 singular ration as the LATEST
+feasible block in eclipse), then additionally minimize the integral of D
+(the buffer empties at contact, like the flight rule). The stage-1
+analytic-center solution is also plotted (fig3_stage1_solution) because the
+smeared singular arcs are themselves a finding.
+
+All PMP checks keep the STAGE-1 duals. This is valid because the transcribed
+problem is a linear program: LP duality pairs ANY optimal dual with ANY
+optimal primal through complementary slackness, so the stage-1 multipliers
+certify the polished trajectory too. We verify this numerically per case:
+the maximum residual |mu * slack| over all state-bound multipliers and the
+polished primal is stored in comparison.json (polished_cs_violation); the
+largest observed value is about 4e-5 Mbit (about 1e-7 of the objective), at
+solver tolerance, so no case needed flagging. The polish itself concedes at
+most its constraint tolerance in science value (polished_J_gap_Mbit, about
+4e-4 Mbit).
+
+## 5. Known limitations
 
 - Uniform-mesh switch resolution is O(h) for interior (non-window) switch
   times; the refinement tables quantify it at a few milli-hours by N = 2880.

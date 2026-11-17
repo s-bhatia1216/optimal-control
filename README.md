@@ -30,9 +30,11 @@ Every experiment reads a YAML config and writes figures + numbers to
 ```
 
 Phase 1 outputs: `fig1_orbit_timeline`, `fig2_baseline_policy` (PDF + PNG),
-`audit.json`, `audit.md`. Phase 2 outputs per case: `fig3_optimal_solution`,
-`refinement.{json,md}`, `comparison.json`, `solution_N2880.npz`, plus
-`results/sweeps/` (DoD-floor sweep) and `results/checkpoint2.md`.
+`audit.json`, `audit.md`. Phase 2 outputs per case: `fig3_optimal_solution`
+(polished trajectory), `fig3_stage1_solution` (analytic-center trajectory),
+`refinement.{json,md}`, `comparison.json`, `solution_N2880.npz` and
+`solution_N2880_polished.npz`, plus `results/sweeps/` (DoD-floor sweep and
+snapped-vs-midpoint mesh error) and `results/checkpoint2.md`.
 
 ## Layout
 

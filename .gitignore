@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# Generated outputs (every figure/number is regenerable from configs/ + scripts/)
+results/
+
+# OS
+.DS_Store

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "matrix-ocp"
+version = "0.1.0"
+description = "MATRIX per-orbit science/downlink scheduling as a state-constrained optimal control problem (MAE 546 final project)"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "scipy",
+    "casadi",      # ships with IPOPT, used in Phase 2 (direct collocation)
+    "matplotlib",
+    "pyyaml",
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

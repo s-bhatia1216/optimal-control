@@ -36,6 +36,11 @@ Phase 1 outputs: `fig1_orbit_timeline`, `fig2_baseline_policy` (PDF + PNG),
 `solution_N2880_polished.npz`, plus `results/sweeps/` (DoD-floor sweep and
 snapped-vs-midpoint mesh error) and `results/checkpoint2.md`.
 
+Phase 3 (`scripts/run_phase3.py`) evaluates the maximum-principle
+conditions derived in `docs/pmp_derivation.md` along the saved solutions:
+per case `fig4_switching_functions` and `pmp_checks.{json,md}`, plus
+`results/checkpoint3.md`.
+
 ## Layout
 
 ```
@@ -44,7 +49,7 @@ src/matrix_ocp/   params.py (units, config), orbit.py (Kepler timeline),
 configs/          one YAML per case
 scripts/          one script per experiment phase
 tests/            pytest suite (orbit checks, balances, periodicity)
-docs/             model.md and, later, direct_method.md / pmp_derivation.md
+docs/             model.md, direct_method.md, pmp_derivation.md
 references/       FDR report and slides (lecture notes + proposal to be added)
 results/          generated, gitignored; regenerate with the commands above
 ```

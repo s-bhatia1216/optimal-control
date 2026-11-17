@@ -213,6 +213,47 @@ def plot_solution(p, tl, sol: dict, baseline: dict, outdir: Path,
     _save(fig, outdir, name)
 
 
+def plot_switching(p: Params, tl: OrbitTimeline, sol: dict, theta: dict,
+                   outdir: Path, name: str = "fig4_switching_functions"):
+    """Figure 4: switching functions along the stage-1 solution + controls.
+
+    theta_s and theta_c are plotted with a zero line; the bang-bang law says
+    the control sits at its upper bound where theta > 0, at zero where
+    theta < 0, and is undetermined (singular) where theta = 0. theta_h is
+    identically zero (energy is free in sunlight because of the dump), so it
+    is reported in text rather than plotted.
+    """
+    tm = sol["t_mid_h"]
+    fig, axes = plt.subplots(3, 1, figsize=(7.0, 6.4), sharex=True,
+                             gridspec_kw={"height_ratios": [1.0, 1.0, 0.9]})
+    ax_s, ax_c, ax_u = axes
+    for ax in axes:
+        _shade_windows(ax, tl, roi=False)
+
+    ax_s.step(tm, theta["theta_s"], where="mid", color=C_ORANGE, lw=1.6)
+    ax_s.axhline(0.0, color="#52514e", lw=0.8)
+    ax_s.set_ylabel(r"$\vartheta_s$ [Mbit/h]")
+    ax_s.set_title(
+        f"Switching functions, case '{p.case_name}' (stage-1 duals; "
+        "gray: eclipse, green: contact)")
+
+    ax_c.step(tm, theta["theta_c"], where="mid", color=C_AQUA, lw=1.6)
+    ax_c.axhline(0.0, color="#52514e", lw=0.8)
+    ax_c.set_ylabel(r"$\vartheta_c$ [Mbit/h]")
+
+    ax_u.step(tm, sol["u_s"], where="mid", color=C_ORANGE, lw=1.4,
+              label="$u_s$ science")
+    ax_u.step(tm, sol["u_c"], where="mid", color=C_AQUA, lw=1.4,
+              label="$u_c$ transmit")
+    ax_u.set_ylabel("controls [-]")
+    ax_u.set_ylim(-0.05, 1.12)
+    ax_u.set_xlabel("time since perigee [h]")
+    ax_u.set_xlim(0, tl.T_h)
+    ax_u.legend(loc="center right", fontsize=8.5)
+
+    _save(fig, outdir, name)
+
+
 def plot_mesh_error(data: dict, outdir: Path, name: str = "fig6_mesh_error"):
     """Transcription error vs mesh size, snapped vs midpoint-sampled inputs.
 

@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
+from matrix_ocp.direct import switch_times
 from matrix_ocp.orbit import OrbitTimeline
 from matrix_ocp.params import Params
 from matrix_ocp.plotting import plot_switching
@@ -46,12 +47,71 @@ def run_case(case: str) -> dict:
     sol, pol, meta = _load(case)
 
     checks = run_all_checks(p, sol, pol, meta)
+    checks["independent"] = independent_checks(p, tl, sol, case)
     theta = switching_functions(p, sol)
     plot_switching(p, tl, sol, theta, outdir)
 
     (outdir / "pmp_checks.json").write_text(json.dumps(checks, indent=2))
     _write_md(case, p, checks, outdir / "pmp_checks.md")
     return checks
+
+
+def independent_checks(p: Params, tl: OrbitTimeline, sol: dict,
+                       case: str) -> list[dict]:
+    """Group (b): predictions derived by hand from the mission physics,
+    compared against the solver output (docs/pmp_derivation.md, Section 7).
+    Unlike the KKT-consistency checks, these could fail if the model or the
+    solution were wrong."""
+    h, us = sol["h_h"], sol["u_s"]
+    roi, ecl = sol["roi"], sol["eclipse"]
+    rows = []
+
+    def add(name, pred, obs):
+        rows.append({"check": name, "predicted": float(pred),
+                     "observed": float(obs),
+                     "rel_err": float(abs(obs - pred) / max(1e-12, abs(pred)))})
+
+    def interior_switches():
+        """u_s switch times away from every window edge (those crossings are
+        bound changes, not PMP switches)."""
+        edges = tl.window_edge_times()
+        return [t for t in switch_times(sol["t_mid_h"], us * (roi > 0.5))
+                if np.min(np.abs(edges - t)) > 0.05]
+
+    sci_roi_h = float(np.sum(h * us * roi))
+    if case == "nominal":
+        add("full-ROI science [h]", tl.roi_duration_h, sci_roi_h)
+    if case.startswith("s1"):
+        ration = (p.dod_floor * p.capacity_Wh
+                  - p.P0_eclipse * p.eclipse_duration_h) / p.P_s
+        add("eclipse ration (energy budget) [h]", ration,
+            float(np.sum(h * us * ecl)))
+        pE_arc = float(np.mean(sol["p_E"][ecl > 0.999]))
+        if case == "s1_uniform":
+            add("p_E on constrained arc = r_s/P_s [Mbit/Wh]",
+                p.r_s / p.P_s, pE_arc)
+            dp = np.diff(sol["p_E"])
+            big = np.flatnonzero(np.abs(dp) > 1e-3)
+            for i in big:
+                t = sol["t_edges_h"][1:-1][i]
+                add(f"|p_E jump| at t = {t:.3f} h = r_s/P_s",
+                    p.r_s / p.P_s, abs(dp[i]))
+        else:
+            thresh = p.P_s * pE_arc / p.r_s
+            for t in interior_switches():
+                add(f"w at switch t = {t:.3f} h = P_s p_E / r_s",
+                    thresh, float(tl.w(np.array([t]))[0]))
+    if case.startswith("s2"):
+        cap_h = (p.r_c * p.contact_duration_h - p.r_hk * tl.T_h) / p.r_s
+        add("science cap (downlink budget) [h]", cap_h, sci_roi_h)
+        pD = float(np.median(sol["p_D"]))
+        if case == "s2_uniform":
+            add("p_D = -1 (unit marginal value) [-]", -1.0, pD)
+        else:
+            for t in interior_switches():
+                add(f"w at switch t = {t:.3f} h = -p_D",
+                    -pD, float(tl.w(np.array([t]))[0]))
+    return rows
 
 
 def _write_md(case: str, p: Params, c: dict, path: Path):
@@ -130,24 +190,56 @@ def _write_md(case: str, p: Params, c: dict, path: Path):
 
 def write_checkpoint3(all_checks: dict):
     lines = [
-        "# Checkpoint 3 summary: PMP checks along the direct solutions", "",
+        "# Checkpoint 3 summary: PMP checks along the direct solutions",
+        "",
+        "## (a) KKT-consistency checks (validate the multiplier extraction)",
+        "",
+        "These restate the transcribed LP's KKT conditions through the",
+        "validated dual-to-costate mapping, so they hold at any converged",
+        "solution regardless of the model (the covector mapping idea: the",
+        "discrete multipliers are samples of the continuous costate, and the",
+        "discrete stationarity conditions are samples of the continuous",
+        "first-order conditions). Passing proves the extraction and the",
+        "transcription are implemented correctly.",
+        "",
         "| case | u_s agree | u_c agree | singular u_s ints | jump resid p_E |"
-        " boundary-arc resid | p(0)=p(T) gap (E, D) | H resid |",
+        " theta_h max (E_max arc) | p(0)=p(T) gap (E, D) | H resid |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for case, c in all_checks.items():
         bs, bc = c["bang_s"], c["bang_c"]
         f = lambda b: "n/a" if b["agreement"] is None else f"{100*b['agreement']:.1f}%"
-        ba = c["boundary_arc"]["max_residual"]
         lines.append(
             f"| {case} | {f(bs)} | {f(bc)} | {bs['n_singular']} |"
             f" {c['costate_jumps']['E']['max_residual']:.1e} |"
-            f" {'n/a' if ba is None else f'{ba:.1e}'} |"
+            f" {c['bang_h']['max_abs_theta_singular']:.1e} |"
             f" {c['transversality']['E']['gap']:.1e},"
             f" {c['transversality']['D']['gap']:.1e} |"
             f" {c['hamiltonian']['max_residual_plain']:.1e} |")
+    lines += [
+        "",
+        "## (b) Independent verification against hand-derived predictions",
+        "",
+        "These numbers come from the mission physics (energy and data",
+        "budgets, marginal values), derived before looking at the solver",
+        "output; agreement is evidence about the model and the solution, not",
+        "the plumbing. The E_max boundary-arc control law"
+        " u_h = (P_0 + P_s u_s + P_c u_c)/P_in belongs here too"
+        " (per-case residuals in pmp_checks.md), as does the sign argument"
+        " that no sustained E_min arc can exist in eclipse"
+        " (best dE/dt = -59 W < 0).",
+        "",
+        "| case | check | predicted | observed | rel err |",
+        "|---|---|---|---|---|",
+    ]
+    for case, c in all_checks.items():
+        for r in c.get("independent", []):
+            lines.append(
+                f"| {case} | {r['check']} | {r['predicted']:.5f} |"
+                f" {r['observed']:.5f} | {r['rel_err']:.1e} |")
     lines += ["", "Details per case in results/<case>/pmp_checks.md;"
-              " derivation in docs/pmp_derivation.md."]
+              " derivation and the two-group rationale in"
+              " docs/pmp_derivation.md Section 7."]
     (REPO / "results" / "checkpoint3.md").write_text("\n".join(lines) + "\n")
 
 

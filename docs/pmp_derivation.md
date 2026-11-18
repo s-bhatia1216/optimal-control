@@ -1,20 +1,34 @@
 # PMP analysis of the MATRIX per-orbit problem
 
-Conventions. This document follows the course lecture notes (Sections 16-18,
-Pontryagin's Maximum Principle Parts I-III) and Liberzon (2012): the control
-Hamiltonian is
+Conventions. This document follows the course lecture notes (version
+compiled 2026/11/14; Sections 16-18, Pontryagin's Maximum Principle Parts
+I-III) and Liberzon (2012): the control Hamiltonian is
 
-    H(x, u, p, p0) = <p, f(x, u, t)> + p0 L(x, u, t),
+    H(x, u, p, p0) = <p, f(x, u, t)> + p0 L(x, u, t)
 
-with abnormal multiplier p0 <= 0 normalized to p0 = -1 in the normal case,
-H MAXIMIZED pointwise over the admissible control set, and canonical
-equations p_dot = -grad_x H. The problem here is normal: a feasible
-trajectory exists with every state constraint strictly inactive (harvest
-less, do little science, keep E mid-range and D small), so the constraint
-system satisfies a Slater condition and p0 = 0 can be excluded. The lecture
-notes do not cover state inequality constraints; for those arcs we use the
-direct-adjoining form surveyed in Hartl, Sethi and Vickson (1995) and
-Bryson and Ho (1975, ch. 3). All numerical statements below are verified
+(notes Eq. 16.5), with abnormal multiplier p0 <= 0 (notes Eq. 17.14)
+normalized to p0 = -1 in the normal case, H MAXIMIZED pointwise over the
+admissible control set (notes Eq. 16.6), and canonical equations
+p_dot = -grad_x H (notes Eq. 16.4). The name "switching function" follows
+the notes' Section 1.2.1 (Eq. 1.7), where it is introduced for the double
+integrator alongside the bang-bang principle; Section 18.6.4 uses it again.
+
+Normality. The problem here is normal (p0 = -1, not 0). Poster version, in
+plain language: a problem is abnormal only when the constraints alone pin
+the trajectory down so tightly that the objective never enters the
+optimality conditions. Our constraints are nowhere near that tight: a
+strictly feasible orbit exists (dump most of the solar power, do a little
+science, and the battery and recorder stay strictly between their limits),
+which is a Slater condition. By the nontriviality requirement (notes
+Section 17.4: the pair (p, p0) can never vanish), setting p0 = 0 would
+force the remaining multipliers to certify optimality from the constraints
+alone, which strict feasibility rules out, so p0 < 0 and we normalize it
+to -1.
+
+The lecture notes do not cover state inequality constraints; for those
+arcs we use the direct-adjoining form surveyed in Hartl, Sethi and Vickson
+(1995) and Bryson and Ho (1975, ch. 3). All numerical statements below are
+verified
 along the N = 2880 direct solutions by scripts/run_phase3.py, which writes
 results/<case>/pmp_checks.{json,md}; the dual-to-costate mapping was
 validated separately on an LQR problem (docs/direct_method.md, Section 2).
@@ -42,7 +56,7 @@ With p = (p_E, p_D) and p0 = -1,
       = [terms independent of u]
         + theta_s(t) u_s + theta_c(t) u_c + theta_h(t) u_h,
 
-with the switching functions (all in Mbit/h)
+with the switching functions (the notes' phi of Eq. 1.7; all in Mbit/h)
 
     theta_s = r_s (w(t) + p_D) - P_s p_E
     theta_c = -(P_c p_E + r_c p_D)
@@ -201,18 +215,41 @@ edges nor costate junctions, the jump of H minus the explicit-time
 contribution is at most 6e-8 Mbit/h for the uniform-w cases and at most
 6e-3 Mbit/h (an O(h) effect at the interior switches, about 3e-4 of the H
 scale) for the apogee cases. H is continuous across control switches, as
-required (lecture notes, Section 18.1).
+required (lecture notes, Section 18.2, "Control Hamiltonian is
+Time-Continuous").
 
-## 7. What this buys the paper
+## 7. Two kinds of checks, and what each one proves
 
-The direct solution and the maximum principle validate each other in both
-directions. PMP explains every feature the LP produces (piecewise-constant
-costates with jumps equal to bound multipliers, the interior-control E_max
-arc, the E_min touch point, the singular smears and their apogee-weighted
-resolution, the marginal-value switch thresholds), and the direct solution
-supplies the multipliers that make every PMP quantity computable without
-solving a boundary-value problem. The quantitative checks are reproducible
-via scripts/run_phase3.py and summarized in results/checkpoint3.md.
+The numerical checks split into two groups with different evidential value.
+
+(a) KKT-consistency checks: the costate jump identity, periodic
+transversality (and its match to the periodicity dual), theta_h = 0 on the
+E_max arc, bang-bang sign agreement, and Hamiltonian continuity. These are
+restatements of the transcribed LP's own KKT conditions through the
+validated dual-to-costate mapping, so they MUST hold at any converged
+solution of any model, right or wrong. This is the covector mapping idea:
+for a consistent transcription, the KKT multipliers of the discrete problem
+are samples of the continuous costate, and the discrete stationarity
+conditions are samples of the continuous first-order conditions. Group (a)
+therefore validates the multiplier extraction and the transcription (the
+mapping is implemented correctly, to residuals of 1e-13), not the model.
+
+(b) Independent verification against hand-derived predictions: p_E =
+r_s/P_s on the S1 constrained arc, the 1.995 h eclipse ration from the
+energy budget, the 15.700 h S2 science cap from the downlink budget, the
+jump magnitudes at both S1 junctions, the marginal-value switch thresholds
+w = P_s p_E / r_s (S1 apogee) and w = -p_D (S2 apogee), and the sign
+argument that no sustained E_min arc can exist in eclipse. These numbers
+are derived by hand from the mission physics before looking at the solver
+output, so agreement here is evidence about the model and the solution,
+not just the plumbing. Both groups pass; the quantitative results are
+reproducible via scripts/run_phase3.py and grouped the same way in
+results/checkpoint3.md.
+
+Taken together, the direct solution and the maximum principle validate each
+other in both directions: PMP explains every feature the LP produces, and
+the direct solution supplies the multipliers that make every PMP quantity
+computable without solving a boundary-value problem.
 
 References: course lecture notes Sections 16-18 (Pontryagin's Maximum
 Principle, Parts I-III); D. Liberzon, Calculus of Variations and Optimal

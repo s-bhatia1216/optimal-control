@@ -289,6 +289,129 @@ def plot_mesh_error(data: dict, outdir: Path, name: str = "fig6_mesh_error"):
     _save(fig, outdir, name)
 
 
+def plot_sensitivity(data: dict, outdir: Path, name: str = "fig7_sensitivity"):
+    """One combined sensitivity figure: optimal ROI science vs each of four
+    parameters (battery capacity, eclipse duration, downlink rate, contact
+    length), with the analytic budget prediction dashed, infeasible points
+    as x markers at zero, and reference values marked."""
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.4), sharey=True)
+    for ax, sweep in zip(axes.ravel(), data["sweeps"]):
+        xs = np.array(sweep["xs"])
+        ok = np.array([s == "ok" for s in sweep["status"]])
+        y = np.array([v if v is not None else np.nan for v in sweep["sci"]])
+        ax.plot(sweep["x_fine"], sweep["pred"], lw=1.0, ls="--",
+                color=C_BLUE, alpha=0.55)
+        ax.plot(xs[ok], y[ok], "o", ms=3.8, color=C_BLUE)
+        if np.any(~ok):
+            ax.plot(xs[~ok], np.zeros(np.sum(~ok)), "x", ms=6,
+                    color=C_RED, alpha=0.8)
+        for m in sweep["marks"]:
+            ax.axvline(m["x"], color="#52514e", lw=0.8, ls=":")
+            ax.annotate(m["label"], xy=(m["x"], 0.04), xycoords=("data",
+                        "axes fraction"), fontsize=7.5, color="#52514e",
+                        rotation=90, ha="right", va="bottom")
+        ax.set_xlabel(sweep["label"])
+        ax.set_title(sweep["title"], fontsize=9.5)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("optimal ROI science [Mbit/orbit]")
+    fig.suptitle("Sensitivity of the optimal science return "
+                 "(dashed: analytic budget; x: infeasible)", fontsize=10.5)
+    fig.tight_layout()
+    _save(fig, outdir, name)
+
+
+def plot_s1_solution_paper(p: Params, tl: OrbitTimeline, pol: dict,
+                           sol1: dict, baseline: dict, outdir: Path,
+                           name: str = "fig2_s1_solution"):
+    """Paper figure: S1 battery and controls, polished trajectory side by
+    side with the stage-1 analytic center (the singular-arc smear)."""
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 4.9), sharex=True,
+                             sharey="row")
+    for (ax_E, ax_u), sol, title in [
+            (axes[:, 0], pol, "polished (flight-like member)"),
+            (axes[:, 1], sol1, "stage-1 (analytic center)")]:
+        for ax in (ax_E, ax_u):
+            _shade_windows(ax, tl, roi=False)
+        ax_E.plot(baseline["t_edges_h"], baseline["E_Wh"], color="#52514e",
+                  lw=1.0, ls="--", label="FDR baseline")
+        ax_E.plot(sol["t_edges_h"], sol["E_Wh"], color=C_BLUE, lw=1.8,
+                  label="optimal")
+        ax_E.axhline(p.E_max, color="#52514e", lw=0.7, ls=":")
+        ax_E.axhline(p.E_min, color=C_RED, lw=0.7, ls=":")
+        ax_E.set_title(title, fontsize=9.5)
+        ax_u.step(sol["t_mid_h"], sol["u_s"], where="mid", color=C_ORANGE,
+                  lw=1.5, label="$u_s$")
+        ax_u.step(sol["t_mid_h"], sol["u_h"], where="mid", color=C_YELLOW,
+                  lw=1.5, label="$u_h$")
+        ax_u.set_ylim(-0.05, 1.12)
+        ax_u.set_xlabel("time since perigee [h]")
+        ax_u.set_xlim(0, tl.T_h)
+    axes[0, 0].set_ylabel("battery $E$ [Wh]")
+    axes[1, 0].set_ylabel("controls [-]")
+    axes[0, 0].legend(loc="center left", fontsize=7.5)
+    axes[0, 0].text(0.3, p.E_min + 12, "$E_{min}$", fontsize=8, color=C_RED)
+    axes[1, 1].legend(loc="center right", fontsize=7.5)
+    fig.suptitle(f"S1 ({p.case_name}): same objective, two members of the "
+                 "optimal family", fontsize=10.5)
+    fig.tight_layout()
+    _save(fig, outdir, name)
+
+
+def plot_costate_jumps(p: Params, tl: OrbitTimeline, pol: dict, sol1: dict,
+                       outdir: Path, name: str = "fig4_costate_jumps"):
+    """Paper figure: polished E on top, stage-1 costate p_E below, with the
+    two state-constraint junctions marked and each jump annotated with the
+    bound multiplier it equals."""
+    dp = np.diff(sol1["p_E"])
+    t_nodes = sol1["t_edges_h"][1:-1]
+    junc = np.flatnonzero(np.abs(dp) > 1e-3)
+
+    fig, (ax_E, ax_p) = plt.subplots(2, 1, figsize=(7.0, 4.6), sharex=True,
+                                     gridspec_kw={"height_ratios": [1.0, 0.9]})
+    for ax in (ax_E, ax_p):
+        _shade_windows(ax, tl, roi=False)
+        for i in junc:
+            ax.axvline(t_nodes[i], color="#52514e", lw=0.8, ls=":")
+
+    ax_E.plot(pol["t_edges_h"], pol["E_Wh"], color=C_BLUE, lw=1.8)
+    ax_E.axhline(p.E_max, color="#52514e", lw=0.7, ls=":")
+    ax_E.axhline(p.E_min, color=C_RED, lw=0.7, ls=":")
+    ax_E.set_ylabel("battery $E$ [Wh]")
+    ax_E.set_title(f"Costate jumps at the state-constraint junctions, "
+                   f"case '{p.case_name}'")
+    ax_E.text(0.3, p.E_max - 38, "$E_{max}$", fontsize=8, color="#52514e")
+    ax_E.text(0.3, p.E_min + 12, "$E_{min}$", fontsize=8, color=C_RED)
+    if len(junc) == 2:
+        ax_E.annotate("leaves $E_{max}$ exactly full", fontsize=8,
+                      xy=(t_nodes[junc[0]], p.E_max),
+                      xytext=(t_nodes[junc[0]] - 7.6, p.E_max - 90),
+                      arrowprops=dict(arrowstyle="->", lw=0.8))
+        ax_E.annotate("$E_{min}$ touch at eclipse exit", fontsize=8,
+                      xy=(t_nodes[junc[1]], p.E_min),
+                      xytext=(t_nodes[junc[1]] + 1.6, p.E_min + 55),
+                      arrowprops=dict(arrowstyle="->", lw=0.8))
+
+    ax_p.step(sol1["t_mid_h"], sol1["p_E"], where="mid", color=C_BLUE, lw=1.8)
+    ax_p.axhline(0.0, color="#52514e", lw=0.8)
+    for i in junc:
+        mu = sol1["mu_Emax"][1:-1][i] if dp[i] > 0 else sol1["mu_Emin"][1:-1][i]
+        which = "E_{max}" if dp[i] > 0 else "E_{min}"
+        side = -8.2 if dp[i] > 0 else 1.6
+        ax_p.annotate(
+            f"$\\Delta p_E = {dp[i]:+.3f} = "
+            f"{'+' if dp[i] > 0 else '-'}\\mu_{{{which}}}$",
+            xy=(t_nodes[i], 0.5 * p.r_s / p.P_s),
+            xytext=(t_nodes[i] + side, 0.55 * p.r_s / p.P_s), fontsize=8.5,
+            arrowprops=dict(arrowstyle="->", lw=0.8))
+    ax_p.text(tl.t_eclipse_center_h, p.r_s / p.P_s + 0.25,
+              "$p_E = r_s/P_s$", ha="center", fontsize=8.5, color=C_BLUE)
+    ax_p.set_ylim(-0.8, p.r_s / p.P_s + 1.3)
+    ax_p.set_ylabel("$p_E$ [Mbit/Wh]")
+    ax_p.set_xlabel("time since perigee [h]")
+    ax_p.set_xlim(0, tl.T_h)
+    _save(fig, outdir, name)
+
+
 def plot_dod_sweep(sweep: dict, outdir: Path, name: str = "fig5_dod_sweep"):
     """Optimal eclipse-science hours vs DoD floor at BOL and EOL capacity.
 

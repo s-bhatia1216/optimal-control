@@ -127,8 +127,8 @@ identical across policies being compared.
 - r_c = 253394.4928 bps = 912.2 Mbit/h (Table 42 downlink rate; this value
   already carries the FDR's 1.5x margin on generated data). The link-budget
   comparison tables (36-38) use 243.4 kbps instead; we use Table 42 because
-  it is the rate the final link budget actually closes at. Swap in the config
-  if you want the conservative one; it shifts capacity by 4%.
+  it is the rate the final link budget actually closes at. Swapping the
+  conservative value into the config shifts the downlink capacity by 4%.
 - D_max = 4 GB SSR (Sec 5.7.10) = 32000 Mbit using decimal GB (4e9 bytes x 8).
   Binary GiB would give 34360 Mbit; immaterial since D stays below 2% of
   either at nominal.

@@ -27,8 +27,8 @@ Discretization (details and dual conventions in docs/direct_method.md):
     a linear program. IPOPT (an interior-point method) converges to the
     analytic center of the optimal face, so on degenerate/singular arcs it
     returns smeared interior control values rather than an arbitrary vertex;
-    we report those arcs rather than regularizing them away (per the
-    professor's comment 2 and the checkpoint-1 decisions).
+    those arcs are reported as-is rather than regularized away, since the
+    degeneracy is real problem structure.
   - polish_solution() runs a second-stage lexicographic solve (hold the
     science value, maximize stored energy, then minimize stored data) that
     picks a flight-like member of the optimal face FOR PLOTTING ONLY; all

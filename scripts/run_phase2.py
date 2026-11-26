@@ -10,7 +10,7 @@ Per case, writes to results/<case_name>/:
     refinement.json / refinement.md   objective & arc times vs mesh size
     solution_N<L>.npz              finest-mesh arrays (reused in Phase 3)
     comparison.json                   optimal vs FDR baseline
-Also writes results/sweeps/ (DoD-floor sweep) and results/checkpoint2.md.
+Also writes results/sweeps/ (DoD-floor sweep) and results/direct_summary.md.
 """
 
 from __future__ import annotations
@@ -203,8 +203,8 @@ def run_dod_sweep(N: int = 720) -> dict:
     return sweep
 
 
-def write_checkpoint2(case_results: dict, sweep: dict | None):
-    lines = ["# Checkpoint 2 summary", ""]
+def write_direct_summary(case_results: dict, sweep: dict | None):
+    lines = ["# Direct solution summary", ""]
     lines += [
         "| case | baseline sci [Mbit] | optimal sci [Mbit] | gain | ecl sci [h] |"
         " min E [Wh] (E_min) | downlink used/cap [Mbit] | mean p_E in eclipse | mean p_D |",
@@ -221,7 +221,7 @@ def write_checkpoint2(case_results: dict, sweep: dict | None):
             f" {c['p_E_eclipse_mean']:+.3f} | {c['p_D_mean']:+.3f} |")
     if sweep is not None:
         lines += ["", "DoD sweep: see results/sweeps/fig5_dod_sweep and dod_sweep.json."]
-    (REPO / "results" / "checkpoint2.md").write_text("\n".join(lines) + "\n")
+    (REPO / "results" / "direct_summary.md").write_text("\n".join(lines) + "\n")
 
 
 def main():
@@ -245,8 +245,8 @@ def main():
         sweep = run_dod_sweep()
         print("[sweep] snapped vs midpoint mesh comparison ...")
         run_mesh_comparison()
-    write_checkpoint2(case_results, sweep)
-    print(f"[ok] wrote results/checkpoint2.md")
+    write_direct_summary(case_results, sweep)
+    print("[ok] wrote results/direct_summary.md")
 
 
 if __name__ == "__main__":

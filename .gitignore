@@ -5,8 +5,12 @@ __pycache__/
 .pytest_cache/
 .venv/
 
-# Generated outputs (every figure/number is regenerable from configs/ + scripts/)
+# Generated outputs (every figure/number is regenerable from configs/ + scripts/,
+# including the solution_*.npz files)
 results/
+
+# Course material and the team design report (not redistributable)
+references/
 
 # OS
 .DS_Store

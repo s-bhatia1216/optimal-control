@@ -13,7 +13,7 @@ clipping at E_max and D = 0; the step is small enough that the clipping error is
 negligible for an audit). It runs several orbits from a guess and keeps the last
 one, which has converged to the periodic cycle.
 
-The audit answers Checkpoint-1 questions: feasibility without the dump control,
+The audit answers three questions: feasibility without the dump control,
 which constraints are active, and how strongly science couples to the battery.
 """
 
@@ -157,7 +157,7 @@ def battery_binding_interval(p: Params, capacity_Wh: float) -> dict:
     The battery starts the eclipse full (sunlit surplus is large, see audit), so
     the E >= E_min constraint over the eclipse reduces to
         usable = dod_floor * capacity  vs  eclipse draw.
-    E_min is BINDING (rations eclipse science, comment 2 of the feedback) when
+    E_min is BINDING (rations eclipse science) when
         need(science=0) < usable < need(science=1),
     infeasible below that interval, slack above it.
     """
@@ -173,7 +173,7 @@ def battery_binding_interval(p: Params, capacity_Wh: float) -> dict:
 
 
 def audit(p: Params, tl: OrbitTimeline, traj: dict) -> dict:
-    """The Checkpoint-1 constraint audit for one parameter set."""
+    """The constraint audit for one parameter set."""
     T = tl.T_h
 
     # (a) Feasibility without the dump control: with u_h = 1 the net energy

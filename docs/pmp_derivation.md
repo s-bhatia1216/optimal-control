@@ -244,7 +244,7 @@ are derived by hand from the mission physics before looking at the solver
 output, so agreement here is evidence about the model and the solution,
 not just the plumbing. Both groups pass; the quantitative results are
 reproducible via scripts/run_phase3.py and grouped the same way in
-results/checkpoint3.md.
+results/pmp_summary.md.
 
 Taken together, the direct solution and the maximum principle validate each
 other in both directions: PMP explains every feature the LP produces, and

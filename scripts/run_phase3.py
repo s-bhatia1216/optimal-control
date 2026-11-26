@@ -10,7 +10,7 @@ Loads the finest-mesh stage-1 solution (duals) and the polished solution
 first-order conditions from docs/pmp_derivation.md, and writes per case:
     fig4_switching_functions.{pdf,png}
     pmp_checks.json / pmp_checks.md
-plus results/checkpoint3.md.
+plus results/pmp_summary.md.
 """
 
 from __future__ import annotations
@@ -188,9 +188,9 @@ def _write_md(case: str, p: Params, c: dict, path: Path):
     path.write_text("\n".join(lines) + "\n")
 
 
-def write_checkpoint3(all_checks: dict):
+def write_pmp_summary(all_checks: dict):
     lines = [
-        "# Checkpoint 3 summary: PMP checks along the direct solutions",
+        "# PMP checks along the direct solutions",
         "",
         "## (a) KKT-consistency checks (validate the multiplier extraction)",
         "",
@@ -240,7 +240,7 @@ def write_checkpoint3(all_checks: dict):
     lines += ["", "Details per case in results/<case>/pmp_checks.md;"
               " derivation and the two-group rationale in"
               " docs/pmp_derivation.md Section 7."]
-    (REPO / "results" / "checkpoint3.md").write_text("\n".join(lines) + "\n")
+    (REPO / "results" / "pmp_summary.md").write_text("\n".join(lines) + "\n")
 
 
 def main():
@@ -255,8 +255,8 @@ def main():
         print(f"   u_s decided {c['bang_s']['n_decided']}, singular"
               f" {c['bang_s']['n_singular']}, jump resid"
               f" {c['costate_jumps']['E']['max_residual']:.2e}")
-    write_checkpoint3(all_checks)
-    print("[ok] wrote results/checkpoint3.md")
+    write_pmp_summary(all_checks)
+    print("[ok] wrote results/pmp_summary.md")
 
 
 if __name__ == "__main__":

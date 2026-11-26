@@ -272,7 +272,7 @@ def write_summary():
         " switch thresholds w = P_s p_E/r_s = 0.9954 (S1 apogee) and"
         " w = -p_D = 0.683 at r = 8.26 R_E (S2 apogee); no sustained E_min"
         " arc possible in eclipse (best dE/dt = -59 W).",
-        "- Full tables: results/checkpoint3.md, results/<case>/pmp_checks.md.",
+        "- Full tables: results/pmp_summary.md, results/<case>/pmp_checks.md.",
         "",
         "## Sensitivity (results/sweeps/fig7_sensitivity)",
         "",

@@ -93,8 +93,8 @@ Spot checks already wired into tests/test_direct.py:
 With a linear objective in u_s only, several directions do not affect the
 objective at all. An interior-point method converges to the analytic center
 of the optimal face, so these show up as SMOOTH INTERIOR control values, not
-bang-bang chatter. Per the checkpoint-1 decisions we report them rather than
-regularize them away:
+bang-bang chatter. Because this degeneracy is real problem structure, these
+arcs are reported rather than regularized away:
 
 - Singular science arcs. S1 with uniform w: the total eclipse science is
   pinned by the energy budget at 1.995 h, but its placement is free; IPOPT

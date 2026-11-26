@@ -8,7 +8,6 @@ singular arc. Full-size results live in results/<case>/pmp_checks.md.
 
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from matrix_ocp.direct import polish_solution, solve_ocp

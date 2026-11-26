@@ -8,7 +8,7 @@ Writes to results/<case_name>/:
     fig1_orbit_timeline.{pdf,png}
     fig2_baseline_policy.{pdf,png}
     audit.json       every number computed below
-    audit.md         human-readable Checkpoint-1 report
+    audit.md         human-readable audit report
 """
 
 from __future__ import annotations
@@ -16,8 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-
-import numpy as np
 
 from matrix_ocp.baseline import (
     audit,
@@ -132,7 +130,7 @@ def upper_bound_comparison(p: Params, tl: OrbitTimeline, traj: dict) -> dict:
 
 
 def write_markdown(report: dict, path: Path):
-    """Render the audit dict as a readable Checkpoint-1 summary."""
+    """Render the audit dict as a readable summary."""
     a = report["audit"]
     nd = a["no_dump_feasibility"]
     ca = a["constraint_activity_baseline"]
@@ -161,7 +159,7 @@ def write_markdown(report: dict, path: Path):
         f" mean u_h needed = {nd['mean_u_h_required']:.3f})",
         f"- At full harvest the usable battery band fills in"
         f" {nd['hours_to_fill_usable_band_at_full_harvest']:.2f} h of the"
-        " ~19.6 h sunlit arc -> **infeasible without u_h** (confirms professor comment 1)",
+        " ~19.6 h sunlit arc -> **infeasible without u_h**",
         "",
         "## (2) Active constraints over the baseline periodic orbit",
         "",
